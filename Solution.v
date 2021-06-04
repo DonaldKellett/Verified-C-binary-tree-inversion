@@ -43,4 +43,28 @@ Qed.
 #[export] Hint Resolve btrep_valid_pointer : valid_pointer.
 
 Lemma body_invert: semax_body Vprog Gprog f_invert invert_spec.
-Proof. Admitted.
+Proof.
+  start_function.
+  forward_if (PROP (isptr p)  LOCAL (temp _p p)  SEP (btrep sigma p)).
+  - forward.
+    rewrite (proj1 H0) by auto.
+    Exists nullval.
+    entailer!.
+  - forward.
+    entailer!.
+    destruct p; simpl in PNp; try now exfalso; try subst i.
+    now simpl.
+  - destruct sigma; unfold btrep; fold btrep.
+    + Intros; subst p; inversion Pp.
+    + Intros y z.
+      forward.
+      forward_call (sigma1, y).
+      Intros vret.
+      do 2 forward.
+      forward_call (sigma2, z).
+      Intros vret0.
+      do 3 forward.
+      simpl; unfold btrep; fold btrep.
+      Exists p vret0 vret.
+      entailer!.
+Qed.
