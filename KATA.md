@@ -59,7 +59,7 @@ Fixpoint bt_invert {A : Type} (tree : bt A) : bt A :=
   end.
 ```
 
-Recall that we should establish basic properties of our mathematical model to confirm that are modelling the right thing. What properties should we expect `bt_invert` to have? An obvious one is that `bt_invert` is an involution, i.e. applying it twice to any given tree returns the original tree:
+Recall that we should establish basic properties of our mathematical model to confirm that we are modelling the right thing. What properties should we expect `bt_invert` to have? An obvious one is that `bt_invert` is an involution, i.e. applying it twice to any given tree returns the original tree:
 
 ```coq
 Lemma bt_invert_involution : forall (A : Type) (tree : bt A),
