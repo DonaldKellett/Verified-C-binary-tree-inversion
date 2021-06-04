@@ -70,10 +70,10 @@ Definition ___compcert_va_float64 : ident := 23%positive.
 Definition ___compcert_va_int32 : ident := 21%positive.
 Definition ___compcert_va_int64 : ident := 22%positive.
 Definition _bt : ident := 2%positive.
+Definition _invert : ident := 59%positive.
 Definition _left : ident := 3%positive.
 Definition _main : ident := 60%positive.
 Definition _p : ident := 57%positive.
-Definition _reverse : ident := 59%positive.
 Definition _right : ident := 4%positive.
 Definition _t : ident := 58%positive.
 Definition _value : ident := 1%positive.
@@ -82,7 +82,7 @@ Definition _t'2 : ident := 62%positive.
 Definition _t'3 : ident := 63%positive.
 Definition _t'4 : ident := 64%positive.
 
-Definition f_reverse := {|
+Definition f_invert := {|
   fn_return := (tptr (Tstruct _bt noattr));
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _bt noattr))) :: nil);
@@ -106,8 +106,8 @@ Definition f_reverse := {|
             (Ederef (Etempvar _p (tptr (Tstruct _bt noattr)))
               (Tstruct _bt noattr)) _left (tptr (Tstruct _bt noattr))))
         (Scall (Some _t'1)
-          (Evar _reverse (Tfunction (Tcons (tptr (Tstruct _bt noattr)) Tnil)
-                           (tptr (Tstruct _bt noattr)) cc_default))
+          (Evar _invert (Tfunction (Tcons (tptr (Tstruct _bt noattr)) Tnil)
+                          (tptr (Tstruct _bt noattr)) cc_default))
           ((Etempvar _t'4 (tptr (Tstruct _bt noattr))) :: nil)))
       (Sset _t (Etempvar _t'1 (tptr (Tstruct _bt noattr)))))
     (Ssequence
@@ -118,9 +118,8 @@ Definition f_reverse := {|
               (Ederef (Etempvar _p (tptr (Tstruct _bt noattr)))
                 (Tstruct _bt noattr)) _right (tptr (Tstruct _bt noattr))))
           (Scall (Some _t'2)
-            (Evar _reverse (Tfunction
-                             (Tcons (tptr (Tstruct _bt noattr)) Tnil)
-                             (tptr (Tstruct _bt noattr)) cc_default))
+            (Evar _invert (Tfunction (Tcons (tptr (Tstruct _bt noattr)) Tnil)
+                            (tptr (Tstruct _bt noattr)) cc_default))
             ((Etempvar _t'3 (tptr (Tstruct _bt noattr))) :: nil)))
         (Sassign
           (Efield
@@ -405,11 +404,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_reverse, Gfun(Internal f_reverse)) :: (_main, Gfun(Internal f_main)) ::
- nil).
+ (_invert, Gfun(Internal f_invert)) :: (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _reverse :: ___builtin_debug :: ___builtin_write32_reversed ::
+(_main :: _invert :: ___builtin_debug :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
@@ -432,3 +430,51 @@ Definition prog : Clight.program :=
   mkprogram composites global_definitions public_idents _main Logic.I.
 
 (* END AST *)
+
+Require Import Coq.Lists.List.
+Import ListNotations.
+
+Inductive bt (A : Type) : Type :=
+| bt_leaf : bt A
+| bt_node : A -> bt A -> bt A -> bt A.
+
+Arguments bt_leaf {A}.
+Arguments bt_node {A} _ _ _.
+
+Fixpoint bt_invert {A : Type} (tree : bt A) : bt A :=
+  match tree with
+  | bt_leaf => bt_leaf
+  | bt_node x l r => bt_node x (bt_invert r) (bt_invert l)
+  end.
+
+Fixpoint bt_inorder {A : Type} (tree : bt A) : list A :=
+  match tree with
+  | bt_leaf => []
+  | bt_node x l r => bt_inorder l ++ [x] ++ bt_inorder r
+  end.
+
+Require Import VST.floyd.proofauto.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Definition t_bt := Tstruct _bt noattr.
+
+Fixpoint btrep (sigma : bt val) (p : val) : mpred :=
+  match sigma with
+  | bt_node x l r => EX y : val, EX z : val,
+    data_at Tsh t_bt (x,(y,z)) p * btrep l y * btrep r z
+  | bt_leaf => !! (p = nullval) && emp
+  end.
+
+Arguments btrep sigma p : simpl never.
+
+Definition invert_spec : ident * funspec :=
+ DECLARE _invert
+  WITH sigma : bt val, p: val
+  PRE [ tptr t_bt ]
+     PROP () PARAMS (p) SEP (btrep sigma p)
+  POST [ (tptr t_bt) ]
+    EX q:val,
+     PROP () RETURN (q) SEP (btrep (bt_invert sigma) q).
+
+Definition Gprog : funspecs := [ invert_spec ].

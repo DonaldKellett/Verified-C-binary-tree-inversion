@@ -6,12 +6,12 @@ struct bt {
   struct bt *right;
 };
 
-struct bt *reverse(struct bt *p) {
+struct bt *invert(struct bt *p) {
   struct bt *t;
   if (!p)
     return NULL;
-  t = reverse(p->left);
-  p->left = reverse(p->right);
+  t = invert(p->left);
+  p->left = invert(p->right);
   p->right = t;
   return p;
 }
