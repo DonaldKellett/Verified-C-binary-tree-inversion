@@ -1,3 +1,3 @@
 # Verified-C-binary-tree-inversion
 
-A Codewars Kata idea. DO NOT MAKE PUBLIC
+A former Codewars Kata idea, now available under the [MIT License](./LICENSE)
